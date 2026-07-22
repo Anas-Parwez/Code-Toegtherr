@@ -1,0 +1,169 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #1c1e29;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* HOME PAGE */
+.homePageWrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.formWrapper {
+    background-color: #2c2f3f;
+    padding: 40px;
+    border-radius: 30px;
+    width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.mainLabel {
+    color: #fff;
+    font-size: 28px;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.inputGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.inputBox {
+    background-color: #1c1e29;
+    border: 1px solid #3c3f52;
+    border-radius: 20px;
+    padding: 12px 16px;
+    color: #fff;
+    font-size: 15px;
+    outline: none;
+}
+
+.inputBox:focus {
+    border-color: #4d9fff;
+}
+
+.inputBox::placeholder {
+    color: #6b7280;
+}
+
+.btn {
+    padding: 12px;
+    border-radius: 20px;
+    border: none;
+    font-size: 15px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.joinBtn {
+    background-color: #4d9fff;
+    color: #fff;
+}
+
+.joinBtn:hover {
+    background-color: #3a8eff;
+}
+
+.createInfo {
+    color: #6b7280;
+    font-size: 14px;
+    text-align: center;
+}
+
+.createNewBtn {
+    color: #4d9fff;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.createNewBtn:hover {
+    text-decoration: underline;
+}
+
+/* EDITOR PAGE */
+.mainWrap {
+    display: flex;
+    height: 100vh;
+}
+
+.aside {
+    width: 230px;
+    background-color: #2c2f3f;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+}
+
+.asideInner {
+    flex: 1;
+}
+
+.logoLabel {
+    color: #fff;
+    font-size: 20px;
+    margin-bottom: 20px;
+}
+
+.clientsLabel {
+    color: #6b7280;
+    font-size: 13px;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.clientsList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.client {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.userName {
+    color: #fff;
+    font-size: 12px;
+    text-align: center;
+}
+
+.copyBtn {
+    background-color: #4d9fff;
+    color: #fff;
+    margin-bottom: 10px;
+}
+
+.copyBtn:hover {
+    background-color: #3a8eff;
+}
+
+.leaveBtn {
+    background-color: #e53e3e;
+    color: #fff;
+}
+
+.leaveBtn:hover {
+    background-color: #c53030;
+}
+
+.editorWrap {
+    flex: 1;
+    overflow: hidden;
+}
