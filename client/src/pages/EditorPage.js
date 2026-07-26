@@ -5,13 +5,16 @@ import ACTIONS from "../Actions";
 import Editor from "../components/Editor";
 import Avatar from "react-avatar";
 import toast from "react-hot-toast";
+
 function EditorPage() {
   const socketRef = useRef(null);
+  const codeRef = useRef('');
   const location = useLocation();
   const navigate = useNavigate();
   const { roomId } = useParams();
   const [clients, setClients] = useState([]);
   const [code, setCode] = useState("");
+
   useEffect(() => {
     const init = async () => {
       socketRef.current = await initSocket();
@@ -29,30 +32,25 @@ function EditorPage() {
         username: location.state?.username,
       });
 
-      socketRef.current.on(
-        ACTIONS.JOINED,
-        ({ clients, username, socketId }) => {
+      socketRef.current.on(ACTIONS.JOINED, ({ clients, username, socketId }) => {
           if (username !== location.state?.username) {
             toast.success(`${username} joined the room`);
-            socketRef.current.emit(ACTIONS.SYNC_CODE, {
-              socketId,
-              code: code,
-            });
           }
           setClients(clients);
-        },
+        }
       );
 
       socketRef.current.on(ACTIONS.DISCONNECTED, ({ socketId, username }) => {
         toast.success(`${username} left the room`);
         setClients((prev) =>
-          prev.filter((client) => client.socketId !== socketId),
+          prev.filter((client) => client.socketId !== socketId)
         );
       });
 
       socketRef.current.on(ACTIONS.CODE_CHANGE, ({ code }) => {
         if (code !== null) {
           setCode(code);
+          codeRef.current = code;
         }
       });
     };
@@ -64,6 +62,7 @@ function EditorPage() {
         socketRef.current.disconnect();
         socketRef.current.off(ACTIONS.JOINED);
         socketRef.current.off(ACTIONS.DISCONNECTED);
+        socketRef.current.off(ACTIONS.CODE_CHANGE);
       }
     };
   }, []);
@@ -80,6 +79,7 @@ function EditorPage() {
   const leaveRoom = () => {
     navigate("/");
   };
+
   return (
     <div className="mainWrap">
       <div className="aside">
@@ -108,6 +108,7 @@ function EditorPage() {
           roomId={roomId}
           code={code}
           onCodeChange={(code) => {
+            codeRef.current = code;
             setCode(code);
             socketRef.current.emit(ACTIONS.CODE_CHANGE, {
               roomId,
@@ -119,4 +120,5 @@ function EditorPage() {
     </div>
   );
 }
+
 export default EditorPage;

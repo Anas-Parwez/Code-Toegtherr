@@ -1,75 +1,99 @@
-// We are Building server
-//SECTION A-Boilerrplate:HTTP+Socket.io setup
-        const express=require('express');
-        const app=express();
-        const http=require('http');
-        const {Server}=require('socket.io');//imports constucte class fom socket io to manage eal time bi diectional communication
-        const ACTIONS=require('./src/Actions');
+require('dotenv').config();
 
-        const server=http.createServer(app);
-        const io=new Server(server);
-        //we didnt use app.listen() because it automatically ceates http sever behind the scenes , 
-        // butt we are using sockets , so we must sepeate them to allow them to shae the same port
+const express = require('express');
+const app = express();
+const http = require('http');
+const { Server } = require('socket.io');
+const ACTIONS = require('./src/Actions');
+const mongoose = require('mongoose');
 
-// SECTION B- Tack whos's in which room
-        const userSocketMap={};
-        //{ 'socket-id-abc': 'Anas' , 'socket-id-xyz': 'Bob}
-        function getAllConnectedClients(roomId){
-            return Array.from(io.sockets.adapter.rooms.get(roomId) || []).map(
-                (socketId)=>({
-                    socketId,
-                    username: userSocketMap[socketId],
-                })
-                //this loops on each rraw internal set and tansforms it into clean, readable data;
-            );
-        }
-// SECTION-C -Handles Socket Events
-        io.on('connection', (socket) => {
-        console.log('socket connected:', socket.id);
+const server = http.createServer(app);
+const io = new Server(server);
 
-        socket.on(ACTIONS.JOIN, ({ roomId, username }) => {
-            userSocketMap[socket.id] = username;
-            socket.join(roomId);
-            // saves uses identity : links thee unique connection id to thete name;
-            // socket.json places this connection into an isolated virrtual channel handled by soclet.io
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URI)
+    .then(() => console.log('MongoDB connected'))
+    .catch((err) => console.log('MongoDB error:', err));
 
-            const clients = getAllConnectedClients(roomId);
-            clients.forEach(({ socketId }) => {
+// Room Model
+const roomSchema = new mongoose.Schema({
+    roomId: String,
+    code: String,
+    updatedAt: Date,
+});
+
+const Room = mongoose.model('Room', roomSchema);
+
+// SECTION B - Track who's in which room
+const userSocketMap = {};
+
+function getAllConnectedClients(roomId) {
+    return Array.from(io.sockets.adapter.rooms.get(roomId) || []).map(
+        (socketId) => ({
+            socketId,
+            username: userSocketMap[socketId],
+        })
+    );
+}
+
+// SECTION C - Handle Socket Events
+io.on('connection', (socket) => {
+    console.log('socket connected:', socket.id);
+
+    socket.on(ACTIONS.JOIN, async ({ roomId, username }) => {
+        userSocketMap[socket.id] = username;
+        socket.join(roomId);
+
+        const clients = getAllConnectedClients(roomId);
+
+        // Fetch existing code from MongoDB
+        const room = await Room.findOne({ roomId });
+        const existingCode = room?.code || '';
+
+        // Send existing code to the new joiner
+        io.to(socket.id).emit(ACTIONS.CODE_CHANGE, {
+            code: existingCode,
+        });
+
+        // Notify everyone in the room
+        clients.forEach(({ socketId }) => {
             io.to(socketId).emit(ACTIONS.JOINED, {
                 clients,
                 username,
                 socketId: socket.id,
             });
-            });
-            // this fetches updated list of users , then loop through every single connected client and sends them JOINED notification
         });
+    });
 
-        socket.on(ACTIONS.CODE_CHANGE, ({ roomId, code }) => {
-            socket.in(roomId).emit(ACTIONS.CODE_CHANGE, { code });// 
-        });
-        //socket.in() instead of io.to(), send changed to code to everyone except the one who is writing to pevent bouncing cursor or lag;
+    socket.on(ACTIONS.CODE_CHANGE, async ({ roomId, code }) => {
+        // Broadcast to everyone else in the room
+        socket.in(roomId).emit(ACTIONS.CODE_CHANGE, { code });
 
-        socket.on(ACTIONS.SYNC_CODE, ({ socketId, code }) => {
-            io.to(socketId).emit(ACTIONS.CODE_CHANGE, { code });
-        });
-        // if someone joins room midway , they may not atart with blank screen so server send code to a specific user id
+        // Save to MongoDB
+        await Room.findOneAndUpdate(
+            { roomId },
+            { code, updatedAt: new Date() },
+            { upsert: true }
+        );
+    });
 
-        socket.on('disconnecting', () => {
-            const rooms = [...socket.rooms];
-            rooms.forEach((roomId) => {
+    socket.on(ACTIONS.SYNC_CODE, ({ socketId, code }) => {
+        io.to(socketId).emit(ACTIONS.CODE_CHANGE, { code });
+    });
+
+    socket.on('disconnecting', () => {
+        const rooms = [...socket.rooms];
+        rooms.forEach((roomId) => {
             socket.in(roomId).emit(ACTIONS.DISCONNECTED, {
                 socketId: socket.id,
                 username: userSocketMap[socket.id],
             });
-            });
-            // it copies all the room this specific user was part of
-            // sends DISCONNECTED msg to eveyone in those rooms so their sidebar immediately removes this user avatar
-            delete userSocketMap[socket.id];
-            socket.leave();
-            // deletes user id from usersocketMap object to clear memory
         });
-        });
+        delete userSocketMap[socket.id];
+        socket.leave();
+    });
+});
 
-// SECTION-D - Strat The Server
-        const PORT=process.env.PORT||5000;
-        server.listen(PORT,()=>console.log(`Listening on port ${PORT}`));
+// SECTION D - Start The Server
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => console.log(`Listening on port ${PORT}`));

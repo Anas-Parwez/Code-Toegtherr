@@ -8,10 +8,9 @@ import "codemirror/addon/edit/closebrackets";
 
 function Editor({ socketRef, roomId, onCodeChange, code }) {
   const editorRef = useRef(null);
-  // This will hold a reference to the CodeMirror editor instance once it's created. We start it as null because the editor doesn't exist yet when the component first loads.
+
   useEffect(() => {
     const init = async () => {
-      // setting up codemirrior
       const editor = CodeMirror.fromTextArea(
         document.getElementById("realtimeEditor"),
         {
@@ -20,7 +19,7 @@ function Editor({ socketRef, roomId, onCodeChange, code }) {
           autoCloseTags: true,
           autoCloseBrackets: true,
           lineNumbers: true,
-        },
+        }
       );
 
       editorRef.current = editor;
@@ -29,18 +28,20 @@ function Editor({ socketRef, roomId, onCodeChange, code }) {
       editorRef.current.on("change", (instance, changes) => {
         const { origin } = changes;
         const code = instance.getValue();
-        onCodeChange(code);
-        //Every time someone types, CodeMirror fires a change event. You:
-
-        // Get the current code with instance.getValue()
-        // Call onCodeChange(code) — this is the function passed down from EditorPage as a prop
-        // EditorPage then emits this code to the socket server
+        // only emit when user actually types
+        // ignore programmatic setValue() calls
+        if (origin !== "setValue") {
+          onCodeChange(code);
+        }
       });
     };
 
     init();
   }, []);
+
   useEffect(() => {
+    // when code arrives from another user via socket
+    // update CodeMirror manually using setValue()
     if (editorRef.current) {
       const currentValue = editorRef.current.getValue();
       if (code !== currentValue) {
@@ -62,10 +63,12 @@ export default Editor;
 //        ↓
 // CodeMirror fires 'change' event
 //         ↓
-// You get the new code with getValue()
+// origin !== 'setValue' check passes
 //         ↓
-// You call onCodeChange(code)
+// onCodeChange(code) called
 //         ↓
-// EditorPage receives it and emits to socket
+// EditorPage emits CODE_CHANGE to server
 //         ↓
 // Server broadcasts to everyone else
+//         ↓
+// Other editors receive code via setValue()
