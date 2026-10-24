@@ -1,5 +1,5 @@
 require('dotenv').config();
-
+const axios = require('axios');
 const express = require('express');
 const app = express();
 const http = require('http');
@@ -35,7 +35,12 @@ function getAllConnectedClients(roomId) {
         })
     );
 }
-
+const LANGUAGE_IDS = {
+    javascript: 102,
+    python: 100,
+    cpp: 105,
+    java: 62,
+};
 // SECTION C - Handle Socket Events
 io.on('connection', (socket) => {
     console.log('socket connected:', socket.id);
@@ -80,7 +85,41 @@ io.on('connection', (socket) => {
     socket.on(ACTIONS.SYNC_CODE, ({ socketId, code }) => {
         io.to(socketId).emit(ACTIONS.CODE_CHANGE, { code });
     });
+    socket.on(ACTIONS.RUN_CODE, async ({ roomId, code, language }) => {
+    console.log('RUN_CODE received:', language);
 
+    const languageId = LANGUAGE_IDS[language];
+    if (!languageId) {
+        io.to(roomId).emit(ACTIONS.OUTPUT_RECEIVED, {
+            error: 'Unsupported language',
+        });
+        return;
+    }
+
+    try {
+        const response = await axios.post(
+            'https://ce.judge0.com/submissions?base64_encoded=false&wait=true',
+            { source_code: code, language_id: languageId },
+            { timeout: 20000 }
+        );
+        const r = response.data;
+        console.log('Judge0 replied:', r.status?.description);
+
+        io.to(roomId).emit(ACTIONS.OUTPUT_RECEIVED, {
+            stdout: r.stdout,
+            stderr: r.stderr,
+            compileOutput: r.compile_output,
+            status: r.status?.description,
+            time: r.time,
+            memory: r.memory,
+        });
+    } catch (err) {
+        console.log('Judge0 error:', err.message);
+        io.to(roomId).emit(ACTIONS.OUTPUT_RECEIVED, {
+            error: 'Could not reach the code execution service: ' + err.message,
+        });
+    }
+});
     socket.on('disconnecting', () => {
         const rooms = [...socket.rooms];
         rooms.forEach((roomId) => {
